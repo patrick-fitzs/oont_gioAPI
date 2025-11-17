@@ -5,11 +5,36 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js" //
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+// category model i.e. 'Dairy', 'Meat', 'Frozen'
+model Category {
+  id       Int       @id @default(autoincrement()) // pk
+  name     String
+  products Product[] // one to many, as a category has many products
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// product model to represent an individual product
+model Product {
+  id          Int     @id @default(autoincrement()) // pk
+  name        String
+  description String? // keep optional, so it doesnt need to be provided to db
+  price       Decimal @db.Decimal(10, 2) // price to 2 decimal
+  stock       Int
+
+  categoryId Int // fk to category
+  category   Category @relation(fields: [categoryId], references: [id]) // the fk points to id in Category table
+
+  deletedAt DateTime? // keeping optional for now. if we want to know when it was deleted
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
