@@ -34,7 +34,79 @@ model Product {
   categoryId Int // fk to category
   category   Category @relation(fields: [categoryId], references: [id]) // the fk points to id in Category table
 
-  deletedAt DateTime? // keeping optional for now. if we want to know when it was deleted
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  deletedAt  DateTime? // keeping optional for now. if we want to know when it was deleted
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+}
+
+// add cart , one per user
+
+model Cart {
+  id     Int    @id @default(autoincrement())
+  userId String @unique
+
+  //one cart many items
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model CartItem {
+  id        Int @id @default(autoincrement())
+  cartId    Int
+  productId Int
+  //quantity must be pos in service logic
+  quantity  Int
+
+  // relation back to the cart
+  cart      Cart     @relation(fields: [cartId], references: [id])
+  //relation back to profuct bein gadded to the cart
+  product   Product  @relation(fields: [productId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  //product can only appear once, quantity updates
+  @@unique([cartId, productId])
+}
+
+// order status, have pending, confirmed and cancelled
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+// Order, these items are copied to OrderItem rows at time of order
+model Order {
+  id     Int    @id @default(autoincrement())
+  // user who placed the order
+  userId String
+
+  status OrderStatus @default(PENDING)
+
+  items OrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// orderItem is a single product in order. price is captured at time of purchase, so future price changes doesnt affect historical orders
+model OrderItem {
+  id        Int @id @default(autoincrement())
+  orderId   Int
+  productId Int
+  quantity  Int
+
+  priceAtPurchase Decimal @db.Decimal(10, 2)
+
+  //relation back to parent order
+  order Order @relation(fields: [orderId], references: [id])
+
+  //relation back to product
+  product Product @relation(fields: [productId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

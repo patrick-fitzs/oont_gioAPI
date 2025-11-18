@@ -18,12 +18,14 @@ export class ProductsController {
         const pageNumber = page ? Number(page) : 1;
         const limitNumber = limit ? Number(limit) : 10;
 
-        //validate numbers, they must be positive
+        //validate numbers, they must be positive, so if not a num, page less than 1 or limit less than 1 throw exception
         if (
             Number.isNaN(pageNumber) || Number.isNaN(limitNumber) || pageNumber < 1 || limitNumber < 1
         ){
             throw new BadRequestException('Limit and page number must be positive.');
         }
+
+        // return valid pos nums, pass to service to do skip/take maths
         return this.productsService.findAll(pageNumber, limitNumber);
     }
 
