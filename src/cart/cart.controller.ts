@@ -1,5 +1,6 @@
 import { Controller, BadRequestException, Get, Param, Body, Delete, Post } from '@nestjs/common';
 import {CartService} from "./cart.service";
+import {AddCartItemDto} from "./dto/add-cart-item.dto";
 
 
 // routes that start with /cart
@@ -25,17 +26,21 @@ export class CartController {
     @Post(':userId/items')
     async addOrUpdateItem(
         @Param('userId') userId: string,
-        @Body('productId') productIdRaw: any, // reads from json body, productid
-        @Body('quantity') quantityRaw: any// reads from json body, quantity
-    ){
+        // @Body('productId') productIdRaw: any, // reads from json body, productid
+        // @Body('quantity') quantityRaw: any// reads from json body, quantity
+        @Body() body: AddCartItemDto,
+    )
+    {
         const cleanedUserId = userId.trim();
         if (!cleanedUserId) {
             throw new BadRequestException('UserId must be provided.');
         }
 
         //convert string to numbers
-        const productId = Number(productIdRaw);
-        const quantity = Number(quantityRaw);
+        // const productId = Number(productIdRaw);
+        // const quantity = Number(quantityRaw);
+
+        const {productId, quantity} = body; // already numbers for dto
 
         // validate nums are positive
         if (
