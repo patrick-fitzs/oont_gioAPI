@@ -50,7 +50,7 @@ export class CartService {
 
         await this.prisma.cartItem.upsert({
             where:{
-                cartId_productId: {
+                cartId_productId: { // links back to our unique cartid, product id
                     cartId: cart.id,
                     productId,
                 },
