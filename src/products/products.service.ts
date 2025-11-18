@@ -17,5 +17,12 @@ export class ProductsService {
     }
 
     // findOne, to return a single product by its id.
-
+    async findOne(id: number) {
+        return this.prisma.product.findUnique({
+            where: { id },
+            include: {
+                category: true,
+            },
+        });
+    }
 }
