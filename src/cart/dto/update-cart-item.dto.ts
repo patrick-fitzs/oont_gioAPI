@@ -7,6 +7,7 @@ export class UpdateCartItemDto {
     example: 3,
     description: 'New quantity for this product in the cart',
   })
+  //decorators
   @IsInt()
   @Min(1)
   quantity: number;

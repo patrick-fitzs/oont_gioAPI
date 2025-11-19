@@ -131,4 +131,69 @@ export class OrdersService {
         );
         return order;
     }
+
+
+    /// cancel order class method
+    async cancelOrder(orderId: number) {
+        return this.prisma.$transaction(async (tx) => {
+            const order = await tx.order.findUnique({
+                where: {id:orderId},
+                include: {
+                    items: true, //just need product id and quantity, use transaction wrap for atomic changes
+                }
+            });
+            if (!order) {
+                throw new NotFoundException(`Order: ${orderId} not found`);
+            }
+            // cancel pending orders, cant cancel confirmed orders
+            if (order.status ==='CONFIRMED'){
+                throw new BadRequestException(`Order ${orderId} has been confimed and cannot be cancelled`);
+            }
+            // no stock just cancel
+            if(order.items.length === 0){
+                return tx.order.update({
+                    where: {id: orderId},
+                    data: {status: 'CANCELLED'}
+                });
+            }
+
+            //collect product id to lock and return
+            const productIds = order.items.map((item)=> item.productId);
+
+            // lock product rows
+            await tx.$queryRaw`
+            SELECT "id"
+            FROM "Product"
+            WHERE "id" IN (${Prisma.join(productIds)})
+            FOR UPDATE`;
+
+            //Return item to stock
+            for (const item of order.items) {
+                await tx.product.update({
+                    where: {id: item.productId},
+                    data: {
+                        stock:{
+                            increment: item.quantity
+                        }
+                    }
+                });
+            }
+            //now return updated order
+            const updated = await tx.order.update({
+                where: {id: orderId},
+                data: {status: 'CANCELLED'},
+                include:{
+                    items: {
+                        include: {product: true}
+                    }
+                }
+            });
+            return updated;
+        },
+            {
+            isolationLevel: Prisma.TransactionIsolationLevel.Serializable, ///row lock isolation to prevent race
+            }
+
+        )
+    }
 }
