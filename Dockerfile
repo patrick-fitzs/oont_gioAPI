@@ -1,6 +1,8 @@
 FROM node:20-alpine
 
 WORKDIR /usr/src/app
+# Just gives the prisma schema the url at buildtime
+ENV DATABASE_URL="postgresql://postgres:postgres@db:5432/oont_db?schema=public"
 
 COPY package*.json ./
 
