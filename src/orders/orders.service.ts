@@ -1,5 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import {PrismaService} from "../prisma/prisma/prisma.service";
+import {Prisma} from "@prisma/client";
 
 
 @Injectable()
@@ -31,7 +32,7 @@ export class OrdersService {
         // clear the cart items
 
 
-    // if not enough stock, roll back transaction
+    // if not enough stock, roll back transaction,
     async checkout(userId: string) {
         const cleanedUserId = userId.trim();
         if (!cleanedUserId) {
@@ -58,13 +59,26 @@ export class OrdersService {
             if (cart.items.length === 0){
                 throw new BadRequestException('Cart is empty');
             }
-            //check the stock for each item in cart
+
+            //grab product ids for lock
+            const productIds = cart.items.map((item)=> item.productId);
+            if (productIds.length === 0){
+                throw new NotFoundException('Cart has no products');
+            }
+
+            await tx.$queryRaw`
+            SELECT "id"
+            FROM "Product"
+            WHERE "id" IN (${Prisma.join(productIds)})
+            FOR UPDATE`;
+
+            //check stock after row lock
             for (const item of cart.items) {
                 if (!item.product) {
                     throw new NotFoundException(`Product: ${item.productId} not found`);
                 }
                 if (item.product.stock < item.quantity){
-                    throw new BadRequestException(`Not enought stock of product ${item.product.name} exists. available: ${item.product.stock}`);
+                    throw new BadRequestException(`Not enough stock of product ${item.product.name} exists. available: ${item.product.stock}`);
                 }
             }
 
@@ -79,7 +93,11 @@ export class OrdersService {
                     }
                 });
             }
-            // nopw create an order with the related order items
+
+
+
+
+            // nopw create an order with the related order items, copy cart items into orderItems. make sure to capture price
             const createdOrder = await tx.order.create({
                 data: {
                     userId: cleanedUserId,
@@ -92,7 +110,6 @@ export class OrdersService {
                         })),
                     },
                 },
-
                 include: {
                     items: {
                         include: {
@@ -107,7 +124,11 @@ export class OrdersService {
                 });
 
             return createdOrder;
-        });
+        },
+            {
+                isolationLevel: Prisma.TransactionIsolationLevel.Serializable, //This sets the isolation level of the transactions
+            }
+        );
         return order;
     }
 }

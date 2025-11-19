@@ -27,9 +27,15 @@ Inside this is
 - clears the user cart
 - these either succeed together or rolled back together
 
-
-
-
+#### Concurrency:
+- When a user checks out, they system must ensure that we do not oversell stock, even if muliple users try to buy the last ferw items at once.
+- We implement the checkout flow into a single db transaction using prisma's $transaction API with serializable isolation.
+  - We load the users cart (includes items)
+  - collect all the product IDs and lock these rows with `SELECT ... FROM ... WHERE .. IN ... FOR UPDATE`
+  - this validates each product has enough stock for the requested quantity
+  - decrements each stock
+  - creates the `Order` and `OrderItem` rows and captures the `priceAtPurchase`
+  - as this all happens in a single transaction, they either all commit or none of them do. so in the event where two checkouts race for the same product, the second transaction waits for the row lock and then would see the updated stock and ultimately fail if there is not enough.
 
 
 ## Run:
@@ -37,10 +43,12 @@ Inside this is
 - cd oont_gioAPI
 - docker compose up -d --build
 Add these two lines to migrate prisma and see the example db that contains a few categories and products
-- docker compose exec api npx prisma migrate dev
-- docker compose exec api npx prisma db seed
+- docker compose exec api npx prisma migrate dev // Migrates to Postgres running in db container
+- docker compose exec api npx prisma db seed // inserts a few examples
 
-Then : http://localhost:3000/api for Swagger
+### Swagger:
+- http://localhost:3000/api for Swagger UI
+- Now you can test GET /products, GET /categories etc.
 
 
 
